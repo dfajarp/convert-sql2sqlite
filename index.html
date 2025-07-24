@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Convert SQL to SQLite</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 2em;
+        background: #f9f9f9;
+      }
+      input,
+      button {
+        padding: 0.5em;
+        margin: 1em 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Convert SQL to SQLite</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+      <label for="sqlFile">Pilih File SQL:</label><br />
+      <input
+        type="file"
+        name="sqlFile"
+        id="sqlFile"
+        accept=".sql"
+        required
+      /><br />
+      <button type="submit">Generate ke SQLite</button>
+    </form>
+
+    <div id="result" style="margin-top: 2em"></div>
+
+    <hr />
+    *notes : sebelum generate MySQL to sqlite harap melakukan generate MySQL to
+    sqlite terlebih dahulu! <a href="/convert.html">klik disini</a>
+
+    <hr />
+
+    <p>petunjuk penggunaan :</p>
+    <p>1. export database mysql di server anda (pastikan ext berbentuk .sql)</p>
+    <p>
+      2. convert MySQL to SQLite Friendly terlebih dahulu, dengan mengupload
+      file dari db server tadi dan download lagi file yang telah di convert (ext
+      masih berbentuk .sql)
+    </p>
+    <p>
+      3. convert Generate MySQL to SQLite di halaman ini, dengan mengupload file
+      hasil dari convert friendly tadi dan mengklik generate, lalu download
+      hasil nya
+    </p>
+    <p>
+      4. pergi kehalaman
+      <a href="http:localhost:5173/manage-database" target="_blank">manage-database</a>
+    </p>
+    <p>5. klik import to indexed DB dan upload</p>
+    <p>6. selesai</p>
+    <script>
+      document
+        .getElementById("upload-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const fileInput = document.getElementById("sqlFile");
+          const formData = new FormData();
+          formData.append("sqlFile", fileInput.files[0]);
+
+          const result = document.getElementById("result");
+          result.innerHTML = "⏳ Mengunggah dan mengonversi...";
+
+          const res = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            const downloadUrl = `/download/${data.dbFileName}`;
+            result.innerHTML = `
+          <p>✅ Import berhasil!</p>
+          <a href="${downloadUrl}" download="${data.dbFileName}">⬇️ Download ${data.dbFileName}</a>
+        `;
+          } else {
+            result.innerHTML = `<p style="color:red;">❌ Gagal: ${data.message}</p>`;
+          }
+        });
+    </script>
+  </body>
+</html>
