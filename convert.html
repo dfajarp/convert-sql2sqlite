@@ -142,9 +142,9 @@ BEGIN TRANSACTION;
       if (/^(PRIMARY|UNIQUE|KEY|FOREIGN)/i.test(line)) continue;
 
       line = line
-        .replace(/AUTO_INCREMENT|UNSIGNED|ZEROFILL/gi, "")
+        // .replace(/AUTO_INCREMENT|UNSIGNED|ZEROFILL/gi, "")
         .replace(/CHARACTER SET [^ ]+|COLLATE [^ ]+/gi, "")
-        .replace(/DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP/gi, "")
+        // .replace(/DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP/gi, "")
         .replace(/COMMENT\s+['"].*?['"]/gi, "")
         .replace(/(ENUM|SET)\s*\([^)]+\)/gi, "TEXT")
         .replace(/int\(\d+\)/gi, "INTEGER")

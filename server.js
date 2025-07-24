@@ -43,7 +43,7 @@ function sanitizeSQLContent(sql) {
   sql = sql.replace(/PRAGMA .*?;/gi, "");
 
   // Proses blok CREATE TABLE secara keseluruhan
-  sql = sql.replace(/CREATE TABLE\s+[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\);/gi, (match, tableName, columnsRaw) => {
+  sql = sql.replace(/CREATE TABLE(?: IF NOT EXISTS)?\s+[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\);/gi, (match, tableName, columnsRaw) => {
     // Pecah baris, hilangkan baris kosong dan komentar
     let lines = columnsRaw
       .split(/\r?\n/)
