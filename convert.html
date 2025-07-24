@@ -75,7 +75,7 @@
       }
 
       function convert() {
-        let sqlite = `-- import to SQLite by running: sqlite3 db.sqlite3 < sqlite.sql
+  let sqlite = `-- import to SQLite by running: sqlite3 db.sqlite3 < sqlite.sql
 
 PRAGMA journal_mode = MEMORY;
 PRAGMA synchronous = OFF;
@@ -87,66 +87,80 @@ BEGIN TRANSACTION;
 
 `;
 
-        const lines = document.getElementById("mysql").value.split("\n");
-        const skip = [/^CREATE DATABASE/i, /^USE/i, /^\/\*/i, /^--/i];
-        let currentTable = "",
-          keys = [];
-        let inCreateTable = false;
+  const lines = document.getElementById("mysql").value.split("\n");
+  const skip = [/^CREATE DATABASE/i, /^USE/i, /^\/\*/i, /^--/i];
+  let currentTable = "";
+  let inCreateTable = false;
+  let inInsert = false;
+  let insertBuffer = "";
 
-        for (let line of lines) {
-          line = line.trim();
-          if (skip.some((rx) => rx.test(line))) continue;
+  for (let rawLine of lines) {
+    let line = rawLine.trim();
+    if (skip.some((rx) => rx.test(line))) continue;
+    if (line === "") continue;
 
-          if (/^(INSERT|REPLACE)/i.test(line)) {
-            sqlite += line.replace(/\\'/g, "''") + "\n";
-            continue;
-          }
+    // Detect start of INSERT (could be multiline)
+    if (/^(INSERT|REPLACE)/i.test(line)) {
+      inInsert = true;
+      insertBuffer = line;
+      // Check if ends with semicolon
+      if (line.endsWith(";")) {
+        sqlite += insertBuffer.replace(/\\'/g, "''") + "\n";
+        inInsert = false;
+        insertBuffer = "";
+      }
+      continue;
+    }
 
-          let m;
-          if ((m = /^CREATE TABLE [`"]?(\w+)[`"]?/i.exec(line))) {
-            currentTable = m[1];
-            inCreateTable = true;
-            sqlite += `\nCREATE TABLE IF NOT EXISTS "${currentTable}" (\n`;
-            continue;
-          }
+    // Continue INSERT multiline
+    if (inInsert) {
+      insertBuffer += " " + line;
+      if (line.endsWith(";")) {
+        sqlite += insertBuffer.replace(/\\'/g, "''") + "\n";
+        inInsert = false;
+        insertBuffer = "";
+      }
+      continue;
+    }
 
-          if (inCreateTable && line.startsWith(")")) {
-            inCreateTable = false;
-            sqlite = sqlite.replace(/,\s*$/, "") + "\n);\n";
-            continue;
-          }
+    let m;
+    if ((m = /^CREATE TABLE [`"]?(\w+)[`"]?/i.exec(line))) {
+      currentTable = m[1];
+      inCreateTable = true;
+      sqlite += `\nCREATE TABLE IF NOT EXISTS "${currentTable}" (\n`;
+      continue;
+    }
 
-          if (inCreateTable) {
-            // Remove constraints and keys (will be added later)
-            if (/^(PRIMARY|UNIQUE|KEY|FOREIGN)/i.test(line)) {
-              // Optional: parse keys separately if needed
-              continue;
-            }
+    if (inCreateTable && line.startsWith(")")) {
+      inCreateTable = false;
+      sqlite = sqlite.replace(/,\s*$/, "") + "\n);\n";
+      continue;
+    }
 
-            line =
-              line
-                .replace(/AUTO_INCREMENT|UNSIGNED|ZEROFILL/gi, "")
-                .replace(/CHARACTER SET [^ ]+|COLLATE [^ ]+/gi, "")
-                .replace(
-                  /DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP/gi,
-                  ""
-                )
-                .replace(/COMMENT\s+['"].*?['"]/gi, "")
-                .replace(/(ENUM|SET)\s*\([^)]+\)/gi, "TEXT")
-                .replace(/int\(\d+\)/gi, "INTEGER")
-                .replace(/varchar\(\d+\)/gi, "TEXT")
-                .replace(/double\(\d+,\d+\)/gi, "REAL")
-                .replace(/datetime|timestamp/gi, "TEXT")
-                .replace(/,\s*$/, "") + ",";
+    if (inCreateTable) {
+      // Skip constraints (they can be handled later)
+      if (/^(PRIMARY|UNIQUE|KEY|FOREIGN)/i.test(line)) continue;
 
-            sqlite += "  " + line + "\n";
-            continue;
-          }
-        }
+      line = line
+        .replace(/AUTO_INCREMENT|UNSIGNED|ZEROFILL/gi, "")
+        .replace(/CHARACTER SET [^ ]+|COLLATE [^ ]+/gi, "")
+        .replace(/DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP/gi, "")
+        .replace(/COMMENT\s+['"].*?['"]/gi, "")
+        .replace(/(ENUM|SET)\s*\([^)]+\)/gi, "TEXT")
+        .replace(/int\(\d+\)/gi, "INTEGER")
+        .replace(/varchar\(\d+\)/gi, "TEXT")
+        .replace(/double\(\d+,\d+\)/gi, "REAL")
+        .replace(/datetime|timestamp/gi, "TEXT")
+        .replace(/,\s*$/, "") + ",";
 
-        sqlite = sqlite.replace(/,\n\);/g, "\n);");
+      sqlite += "  " + line + "\n";
+      continue;
+    }
+  }
 
-        sqlite += `
+  sqlite = sqlite.replace(/,\n\);/g, "\n);");
+
+  sqlite += `
 COMMIT;
 PRAGMA ignore_check_constraints = ON;
 PRAGMA foreign_keys = ON;
@@ -154,11 +168,9 @@ PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
 `;
 
-        document.getElementById("sqlite").value = sqlite.replace(
-          /0x(\w+)/g,
-          "X'$1'"
-        );
-      }
+  document.getElementById("sqlite").value = sqlite.replace(/0x(\w+)/g, "X'$1'");
+}
+
 
       function downloadResult() {
         const text = document.getElementById("sqlite").value;
